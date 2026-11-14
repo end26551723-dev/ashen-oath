@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>灰燼誓約：失落王冠</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10151b;color:#f3ead8;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;touch-action:none}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+#hud{position:fixed;inset:0;pointer-events:none;padding:14px;display:flex;flex-direction:column;justify-content:space-between;text-shadow:0 2px 4px #000}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.panel{background:#111b22c9;border:1px solid #b99a5a88;border-radius:12px;padding:9px 12px;backdrop-filter:blur(5px);max-width:75%}
+h1{font-size:15px;letter-spacing:2px;margin:0 0 5px;color:#e9c77d}.small{font-size:12px;color:#d8d0bf}.bar{height:8px;background:#3b3430;border-radius:8px;overflow:hidden;margin-top:5px;width:150px}.fill{height:100%;background:linear-gradient(90deg,#8e2427,#e05c46);width:100%}
+#quest{font-size:12px;line-height:1.5}.bottom{display:flex;justify-content:space-between;align-items:end}.hint{font-size:11px;color:#e5d6b4;max-width:48%}
+#controls{position:fixed;inset:auto 0 max(16px,env(safe-area-inset-bottom)) 0;display:flex;justify-content:space-between;align-items:end;padding:0 18px;pointer-events:none}
+#stick{width:142px;height:142px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none}
+#stickbase{width:116px;height:116px;border-radius:50%;border:2px solid #d7c18a99;background:#18232d99;box-shadow:0 4px 18px #0008;position:relative;touch-action:none}
+#stickknob{position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #f0d9a2;background:#9d8154dd;box-shadow:0 3px 10px #0009;pointer-events:none}
+.action{border:1px solid #d7c18a88;background:#18232dcc;color:#fff;border-radius:50%;width:58px;height:58px;font-size:12px;box-shadow:0 4px 12px #0008;touch-action:none}
+.action:active{background:#8d7042}
+.actions{display:flex;gap:7px;align-items:end;pointer-events:auto}.action{width:62px;height:62px;font-size:13px;font-weight:700}.action.attack{background:#672c2bdc}.action.roll{background:#314d59dc}
+#modal{position:fixed;inset:0;background:#080d12c9;display:flex;align-items:center;justify-content:center;padding:22px;z-index:1000;pointer-events:auto;touch-action:manipulation}
+.box{max-width:440px;background:linear-gradient(145deg,#29343b,#121a20);border:1px solid #c3a46a;border-radius:18px;padding:24px;box-shadow:0 20px 60px #000b;text-align:center}
+.box h2{color:#edce8a;letter-spacing:2px;margin:0 0 10px}.box p{line-height:1.7;color:#e0d8c9;font-size:14px}.start{background:#a17c42;color:#17130d;border:0;border-radius:10px;padding:12px 28px;font-weight:800;font-size:15px;min-height:54px;cursor:pointer;pointer-events:auto;touch-action:manipulation;-webkit-appearance:none}
+@media(min-width:800px){#controls{opacity:.72}.hint{font-size:13px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div class="top">
+  <div class="panel"><h1>灰燼誓約 · 失落王冠</h1><div class="small">騎士 艾德里克　｜　生命</div><div class="bar"><div id="hp" class="fill"></div></div><div id="hptext" class="small">100 / 100</div></div>
+  <div class="panel" id="quest">主線任務<br>尋回 3 枚王室徽記<br><span class="small">已取得：0 / 3</span></div>
+ </div>
+ <div class="bottom"><div class="panel hint" id="hint">左側搖桿移動・右側按鈕攻擊／防禦／翻滾</div><div class="panel small" id="status">灰燼森林　·　黎明前</div></div>
+</div>
+<div id="controls">
+ <div id="stick" aria-label="移動搖桿"><div id="stickbase"><div id="stickknob"></div></div></div>
+ <div class="actions"><button class="action" id="lock">鎖定</button><button class="action roll" data-k="Shift">翻滾</button><button class="action" id="shield">防禦</button><button class="action attack" data-k=" ">攻擊</button></div>
+</div>
+<div id="modal"><div class="box"><h2 id="mtitle">灰燼誓約</h2><p id="mdesc">王國陷落的第七年，古堡深處傳來鐘聲。<br>你是最後的誓約騎士，必須穿越灰燼森林，尋回三枚王室徽記，擊敗守門的墮落騎士，取回失落王冠。</p><p>操作：手機用左側搖桿移動，右側按鈕攻擊、防禦與翻滾；電腦可用 WASD、空白鍵與 Shift。</p><button class="start" id="start">踏入森林</button></div></div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d');let W,H,dpr;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+const keys={};let running=false,won=false,dead=false,frames=0,score=0;
+let joy={x:0,y:0,active:false},blocking=false,locked=false;
+const world={w:1800,h:1300};const player={x:900,y:1030,hp:100,max:100,dir:0,atk:0,roll:0,inv:0};
+const relics=[{x:330,y:320,got:false},{x:1450,y:430,got:false},{x:920,y:170,got:false}];
+const enemies=[
+ {x:520,y:560,hp:55,max:55,spd:.7,kind:'wraith',hit:0},
+ {x:1220,y:760,hp:55,max:55,spd:.75,kind:'wraith',hit:0},
+ {x:850,y:360,hp:70,max:70,spd:.55,kind:'guard',hit:0},
+ {x:900,y:160,hp:150,max:150,spd:.8,kind:'boss',hit:0,boss:true}
+];
+const trees=[];let seed=8;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+for(let i=0;i<100;i++){let x=60+rnd()*1680,y=80+rnd()*1150;if(Math.hypot(x-900,y-1030)>150)trees.push({x,y,r:18+rnd()*17})}
+const stones=[];for(let i=0;i<38;i++)stones.push({x:80+rnd()*1640,y:100+rnd()*1100,r:5+rnd()*9});
+function keydown(e){if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys[e.key===' '?' ':e.key.toLowerCase()]=true;if(e.key===' ')attack()}function keyup(e){keys[e.key===' '?' ':e.key.toLowerCase()]=false}
+addEventListener('keydown',keydown);addEventListener('keyup',keyup);
+document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k===' ' ? ' ':b.dataset.k.toLowerCase();b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true;if(k===' ')attack()});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
+const stick=document.getElementById('stick'),base=document.getElementById('stickbase'),knob=document.getElementById('stickknob');
+function moveStick(e){const r=base.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,d=Math.hypot(x,y),max=42;if(d>max){x=x/d*max;y=y/d*max}joy.x=x/max;joy.y=y/max;knob.style.left=`calc(50% + ${x}px)`;knob.style.top=`calc(50% + ${y}px)`}
+stick.addEventListener('pointerdown',e=>{e.preventDefault();stick.setPointerCapture(e.pointerId);joy.active=true;moveStick(e)});
+stick.addEventListener('pointermove',e=>{if(joy.active)moveStick(e)});
+function releaseStick(){joy.active=false;joy.x=0;joy.y=0;knob.style.left='50%';knob.style.top='50%'}
+stick.addEventListener('pointerup',releaseStick);stick.addEventListener('pointercancel',releaseStick);stick.addEventListener('lostpointercapture',releaseStick);
+document.getElementById('shield').addEventListener('pointerdown',e=>{e.preventDefault();blocking=true});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>document.getElementById('shield').addEventListener(ev,()=>blocking=false));
+document.getElementById('lock').onclick=()=>{locked=!locked;document.getElementById('lock').textContent=locked?'解鎖':'鎖定'};
+function attack(){if(!running||player.atk>0||player.roll>0)return;player.atk=18;for(const en of enemies){if(en.hp<=0)continue;let dx=en.x-player.x,dy=en.y-player.y,dist=Math.hypot(dx,dy);if(dist<83){let a=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(a-player.dir),Math.cos(a-player.dir));if(Math.abs(diff)<1.25){en.hp-=en.boss?25:38;en.hit=10;if(en.hp<=0&&!en.boss)score++}}}}
+function roll(){if(player.roll<=0&&player.inv<=0){player.roll=13;player.inv=17}}
+function update(){
+ if(!running)return;frames++;
+ let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x,dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+joy.y;
+ if(keys.shift){roll();keys.shift=false}
+ if(dx||dy){let l=Math.hypot(dx,dy);dx/=l;dy/=l;if(!locked||Math.hypot(...enemies.filter(e=>e.hp>0).map(e=>[e.x-player.x,e.y-player.y]).sort((a,b)=>Math.hypot(...a)-Math.hypot(...b))[0]||[999,999])>500)player.dir=Math.atan2(dy,dx);let sp=player.roll>0?7:2.7;player.x+=dx*sp;player.y+=dy*sp}
+ if(blocking){/* guard stance: incoming damage is reduced below */}
+ player.x=Math.max(35,Math.min(world.w-35,player.x));player.y=Math.max(70,Math.min(world.h-35,player.y));
+ if(player.atk>0)player.atk--;if(player.roll>0)player.roll--;if(player.inv>0)player.inv--;
+ for(const en of enemies){if(en.hp<=0)continue;if(en.hit>0){en.hit--;continue}let vx=player.x-en.x,vy=player.y-en.y,d=Math.hypot(vx,vy);if(d<330&&d>40){en.x+=vx/d*en.spd;en.y+=vy/d*en.spd}else if(d<=48&&player.inv<=0){player.hp-=(en.boss?0.55:0.32)*(blocking?0.22:1);player.inv=4}}
+ for(const r of relics)if(!r.got&&Math.hypot(r.x-player.x,r.y-player.y)<42)r.got=true;
+ if(player.hp<=0){player.hp=0;dead=true;end('誓約中斷','騎士倒在灰燼之中。再試一次，找回三枚徽記。')}
+ if(relics.every(r=>r.got)&&enemies[3].hp<=0&&!won){won=true;end('王冠歸來','你擊敗了墮落騎士，失落王冠重見天日。王國的故事，才正要開始。')}
+ document.getElementById('hp').style.width=player.hp+'%';document.getElementById('hptext').textContent=Math.ceil(player.hp)+' / 100';
+ document.getElementById('quest').innerHTML='主線任務<br>'+ (relics.every(r=>r.got)?'擊敗古堡守門者':'尋回 3 枚王室徽記')+'<br><span class="small">已取得：'+relics.filter(r=>r.got).length+' / 3</span>';
+ document.getElementById('status').textContent=relics.every(r=>r.got)?'古堡入口　·　守門者甦醒':'灰燼森林　·　黎明前';
+}
+function end(title,desc){running=false;document.getElementById('mtitle').textContent=title;document.getElementById('mdesc').textContent=desc;document.getElementById('start').textContent='重新開始';document.getElementById('modal').style.display='flex'}
+function restart(){player.x=900;player.y=1030;player.hp=100;player.inv=0;player.atk=0;player.roll=0;relics.forEach(r=>r.got=false);enemies.forEach((e,i)=>{e.hp=e.max;e.hit=0;let p=[[520,560],[1220,760],[850,360],[900,160]][i];e.x=p[0];e.y=p[1]});won=dead=false;frames=0}
+function startGame(e){
+ if(e){e.preventDefault();e.stopPropagation()}
+ if(won||dead)restart();
+ running=true;
+ document.getElementById('modal').style.display='none';
+}
+const startButton=document.getElementById('start');
+startButton.addEventListener('pointerup',startGame);
+startButton.addEventListener('click',startGame);
+function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
+function ellipse(x,y,rx,ry,color){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=color;ctx.fill()}
+function knight(x,y,dir,isEnemy=false,boss=false,flash=false){
+ ctx.save();ctx.translate(x,y);ctx.rotate(0);
+ ellipse(0,9,boss?21:13,boss?9:6,'#10151288');
+ let sc=boss?1.35:1;ctx.scale(sc,sc);
+ // cloak and armor body
+ poly([[-9,-10],[-14,9],[0,15],[13,8],[8,-10]],isEnemy?'#542b2d':'#263d4b','#0b1115');
+ ellipse(0,-11,9,12,flash?'#fff1c7':(isEnemy?'#873d38':'#9caab0'));
+ poly([[-9,-17],[-7,-27],[0,-31],[8,-27],[10,-17],[4,-13],[-5,-13]],isEnemy?'#6f3431':'#c1c9c5','#27343a');
+ // visor
+ poly([[-6,-22],[6,-22],[5,-17],[-5,-17]],'#18232a');
+ ctx.strokeStyle='#d7bd7c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-25);ctx.lineTo(0,-18);ctx.stroke();
+ // sword
+ ctx.save();ctx.translate(9,-7);ctx.rotate(dir);ctx.fillStyle='#d7dce0';ctx.fillRect(0,-2,28,4);ctx.fillStyle='#a8874c';ctx.fillRect(-3,-5,6,10);ctx.restore();
+ if(!isEnemy&&blocking){ctx.strokeStyle='#b9d7e4';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-7,24,player.dir-.8,player.dir+.8);ctx.stroke()}
+ if(!isEnemy&&player.atk>0){ctx.strokeStyle='#f5dda0';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-5,43,dir-.9,dir+.9);ctx.stroke()}
+ ctx.restore();
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);let scale=Math.min(W/900,H/650,1.25),camX=player.x-W/(2*scale),camY=player.y-H/(2*scale);
+ ctx.save();ctx.scale(scale,scale);ctx.translate(-camX,-camY);
+ // ground
+ ctx.fillStyle='#293c32';ctx.fillRect(0,0,world.w,world.h);
+ for(let y=0;y<world.h;y+=80)for(let x=0;x<world.w;x+=80){ctx.fillStyle=((x+y)/80%2<1)?'#304638':'#2c4035';ctx.fillRect(x,y,80,80)}
+ // ancient path
+ ctx.strokeStyle='#786b53';ctx.lineWidth=95;ctx.globalAlpha=.45;ctx.beginPath();ctx.moveTo(900,1300);ctx.bezierCurveTo(650,950,1150,800,900,560);ctx.bezierCurveTo(720,400,950,300,900,80);ctx.stroke();ctx.globalAlpha=1;
+ stones.forEach(s=>{ellipse(s.x,s.y,s.r,s.r*.55,'#596054');ellipse(s.x-2,s.y-2,s.r*.55,s.r*.25,'#78806e')});
+ trees.forEach(t=>{ellipse(t.x,t.y+12,t.r*1.2,t.r*.5,'#18251e');poly([[t.x-5,t.y],[t.x-3,t.y-35],[t.x+5,t.y-35],[t.x+7,t.y]],'#4b3828');ellipse(t.x,t.y-35,t.r,t.r*.9,'#20382d');ellipse(t.x-8,t.y-42,t.r*.55,t.r*.45,'#36513a')});
+ // ruins around boss
+ for(let i=0;i<9;i++){let a=i*Math.PI*2/9;let x=900+Math.cos(a)*125,y=160+Math.sin(a)*75;ctx.fillStyle='#777365';ctx.fillRect(x-12,y-28,24,50);poly([[x-16,y-28],[x,y-43],[x+16,y-28]],'#958b72')}
+ relics.forEach((r,i)=>{if(r.got)return;ctx.save();ctx.translate(r.x,r.y);let bob=Math.sin(frames*.06+i)*5;ellipse(0,8,18,7,'#1119');ctx.shadowColor='#f5ce69';ctx.shadowBlur=20;poly([[-9,-10],[0,-24],[9,-10],[7,4],[-7,4]],'#e6c36e','#fff0b0');ctx.shadowBlur=0;ctx.restore()});
+ enemies.forEach(e=>{if(e.hp<=0)return;knight(e.x,e.y,Math.atan2(player.y-e.y,player.x-e.x),true,e.boss,e.hit>0);ctx.fillStyle='#1b1111';ctx.fillRect(e.x-22,e.y-43,44,5);ctx.fillStyle=e.boss?'#d4a34e':'#b74e45';ctx.fillRect(e.x-22,e.y-43,44*Math.max(0,e.hp/e.max),5)});
+ knight(player.x,player.y,player.dir,false,false,player.inv>0&&frames%4<2);
+ // edge vignette
+ ctx.restore();
+ let grd=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.max(W,H)*.72);grd.addColorStop(0,'#0000');grd.addColorStop(1,'#080d13a8');ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+}
+function loop(){update();draw();requestAnimationFrame(loop)}loop();
+})();
+</script>
+</body></html>
