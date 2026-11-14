@@ -1,139 +1,83 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>灰燼誓約：失落王冠</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#101821">
+<title>灰燼誓約：失落王冠｜3D 序章</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10151b;color:#f3ead8;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;touch-action:none}
-canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
-#hud{position:fixed;inset:0;pointer-events:none;padding:14px;display:flex;flex-direction:column;justify-content:space-between;text-shadow:0 2px 4px #000}
-.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.panel{background:#111b22c9;border:1px solid #b99a5a88;border-radius:12px;padding:9px 12px;backdrop-filter:blur(5px);max-width:75%}
-h1{font-size:15px;letter-spacing:2px;margin:0 0 5px;color:#e9c77d}.small{font-size:12px;color:#d8d0bf}.bar{height:8px;background:#3b3430;border-radius:8px;overflow:hidden;margin-top:5px;width:150px}.fill{height:100%;background:linear-gradient(90deg,#8e2427,#e05c46);width:100%}
-#quest{font-size:12px;line-height:1.5}.bottom{display:flex;justify-content:space-between;align-items:end}.hint{font-size:11px;color:#e5d6b4;max-width:48%}
-#controls{position:fixed;inset:auto 0 max(16px,env(safe-area-inset-bottom)) 0;display:flex;justify-content:space-between;align-items:end;padding:0 18px;pointer-events:none}
-#stick{width:142px;height:142px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none}
-#stickbase{width:116px;height:116px;border-radius:50%;border:2px solid #d7c18a99;background:#18232d99;box-shadow:0 4px 18px #0008;position:relative;touch-action:none}
-#stickknob{position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #f0d9a2;background:#9d8154dd;box-shadow:0 3px 10px #0009;pointer-events:none}
-.action{border:1px solid #d7c18a88;background:#18232dcc;color:#fff;border-radius:50%;width:58px;height:58px;font-size:12px;box-shadow:0 4px 12px #0008;touch-action:none}
-.action:active{background:#8d7042}
-.actions{display:flex;gap:7px;align-items:end;pointer-events:auto}.action{width:62px;height:62px;font-size:13px;font-weight:700}.action.attack{background:#672c2bdc}.action.roll{background:#314d59dc}
-#modal{position:fixed;inset:0;background:#080d12c9;display:flex;align-items:center;justify-content:center;padding:22px;z-index:1000;pointer-events:auto;touch-action:manipulation}
-.box{max-width:440px;background:linear-gradient(145deg,#29343b,#121a20);border:1px solid #c3a46a;border-radius:18px;padding:24px;box-shadow:0 20px 60px #000b;text-align:center}
-.box h2{color:#edce8a;letter-spacing:2px;margin:0 0 10px}.box p{line-height:1.7;color:#e0d8c9;font-size:14px}.start{background:#a17c42;color:#17130d;border:0;border-radius:10px;padding:12px 28px;font-weight:800;font-size:15px;min-height:54px;cursor:pointer;pointer-events:auto;touch-action:manipulation;-webkit-appearance:none}
-@media(min-width:800px){#controls{opacity:.72}.hint{font-size:13px}}
-</style>
-</head>
-<body>
-<canvas id="game"></canvas>
-<div id="hud">
- <div class="top">
-  <div class="panel"><h1>灰燼誓約 · 失落王冠</h1><div class="small">騎士 艾德里克　｜　生命</div><div class="bar"><div id="hp" class="fill"></div></div><div id="hptext" class="small">100 / 100</div></div>
-  <div class="panel" id="quest">主線任務<br>尋回 3 枚王室徽記<br><span class="small">已取得：0 / 3</span></div>
- </div>
- <div class="bottom"><div class="panel hint" id="hint">左側搖桿移動・右側按鈕攻擊／防禦／翻滾</div><div class="panel small" id="status">灰燼森林　·　黎明前</div></div>
-</div>
-<div id="controls">
- <div id="stick" aria-label="移動搖桿"><div id="stickbase"><div id="stickknob"></div></div></div>
- <div class="actions"><button class="action" id="lock">鎖定</button><button class="action roll" data-k="Shift">翻滾</button><button class="action" id="shield">防禦</button><button class="action attack" data-k=" ">攻擊</button></div>
-</div>
-<div id="modal"><div class="box"><h2 id="mtitle">灰燼誓約</h2><p id="mdesc">王國陷落的第七年，古堡深處傳來鐘聲。<br>你是最後的誓約騎士，必須穿越灰燼森林，尋回三枚王室徽記，擊敗守門的墮落騎士，取回失落王冠。</p><p>操作：手機用左側搖桿移動，右側按鈕攻擊、防禦與翻滾；電腦可用 WASD、空白鍵與 Shift。</p><button class="start" id="start">踏入森林</button></div></div>
-<script>
-(()=>{
-const c=document.getElementById('game'),ctx=c.getContext('2d');let W,H,dpr;
-function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
-const keys={};let running=false,won=false,dead=false,frames=0,score=0;
-let joy={x:0,y:0,active:false},blocking=false,locked=false;
-const world={w:1800,h:1300};const player={x:900,y:1030,hp:100,max:100,dir:0,atk:0,roll:0,inv:0};
-const relics=[{x:330,y:320,got:false},{x:1450,y:430,got:false},{x:920,y:170,got:false}];
-const enemies=[
- {x:520,y:560,hp:55,max:55,spd:.7,kind:'wraith',hit:0},
- {x:1220,y:760,hp:55,max:55,spd:.75,kind:'wraith',hit:0},
- {x:850,y:360,hp:70,max:70,spd:.55,kind:'guard',hit:0},
- {x:900,y:160,hp:150,max:150,spd:.8,kind:'boss',hit:0,boss:true}
-];
-const trees=[];let seed=8;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
-for(let i=0;i<100;i++){let x=60+rnd()*1680,y=80+rnd()*1150;if(Math.hypot(x-900,y-1030)>150)trees.push({x,y,r:18+rnd()*17})}
-const stones=[];for(let i=0;i<38;i++)stones.push({x:80+rnd()*1640,y:100+rnd()*1100,r:5+rnd()*9});
-function keydown(e){if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys[e.key===' '?' ':e.key.toLowerCase()]=true;if(e.key===' ')attack()}function keyup(e){keys[e.key===' '?' ':e.key.toLowerCase()]=false}
-addEventListener('keydown',keydown);addEventListener('keyup',keyup);
-document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k===' ' ? ' ':b.dataset.k.toLowerCase();b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true;if(k===' ')attack()});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
-const stick=document.getElementById('stick'),base=document.getElementById('stickbase'),knob=document.getElementById('stickknob');
-function moveStick(e){const r=base.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,d=Math.hypot(x,y),max=42;if(d>max){x=x/d*max;y=y/d*max}joy.x=x/max;joy.y=y/max;knob.style.left=`calc(50% + ${x}px)`;knob.style.top=`calc(50% + ${y}px)`}
-stick.addEventListener('pointerdown',e=>{e.preventDefault();stick.setPointerCapture(e.pointerId);joy.active=true;moveStick(e)});
-stick.addEventListener('pointermove',e=>{if(joy.active)moveStick(e)});
-function releaseStick(){joy.active=false;joy.x=0;joy.y=0;knob.style.left='50%';knob.style.top='50%'}
-stick.addEventListener('pointerup',releaseStick);stick.addEventListener('pointercancel',releaseStick);stick.addEventListener('lostpointercapture',releaseStick);
-document.getElementById('shield').addEventListener('pointerdown',e=>{e.preventDefault();blocking=true});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>document.getElementById('shield').addEventListener(ev,()=>blocking=false));
-document.getElementById('lock').onclick=()=>{locked=!locked;document.getElementById('lock').textContent=locked?'解鎖':'鎖定'};
-function attack(){if(!running||player.atk>0||player.roll>0)return;player.atk=18;for(const en of enemies){if(en.hp<=0)continue;let dx=en.x-player.x,dy=en.y-player.y,dist=Math.hypot(dx,dy);if(dist<83){let a=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(a-player.dir),Math.cos(a-player.dir));if(Math.abs(diff)<1.25){en.hp-=en.boss?25:38;en.hit=10;if(en.hp<=0&&!en.boss)score++}}}}
-function roll(){if(player.roll<=0&&player.inv<=0){player.roll=13;player.inv=17}}
-function update(){
- if(!running)return;frames++;
- let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x,dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+joy.y;
- if(keys.shift){roll();keys.shift=false}
- if(dx||dy){let l=Math.hypot(dx,dy);dx/=l;dy/=l;if(!locked||Math.hypot(...enemies.filter(e=>e.hp>0).map(e=>[e.x-player.x,e.y-player.y]).sort((a,b)=>Math.hypot(...a)-Math.hypot(...b))[0]||[999,999])>500)player.dir=Math.atan2(dy,dx);let sp=player.roll>0?7:2.7;player.x+=dx*sp;player.y+=dy*sp}
- if(blocking){/* guard stance: incoming damage is reduced below */}
- player.x=Math.max(35,Math.min(world.w-35,player.x));player.y=Math.max(70,Math.min(world.h-35,player.y));
- if(player.atk>0)player.atk--;if(player.roll>0)player.roll--;if(player.inv>0)player.inv--;
- for(const en of enemies){if(en.hp<=0)continue;if(en.hit>0){en.hit--;continue}let vx=player.x-en.x,vy=player.y-en.y,d=Math.hypot(vx,vy);if(d<330&&d>40){en.x+=vx/d*en.spd;en.y+=vy/d*en.spd}else if(d<=48&&player.inv<=0){player.hp-=(en.boss?0.55:0.32)*(blocking?0.22:1);player.inv=4}}
- for(const r of relics)if(!r.got&&Math.hypot(r.x-player.x,r.y-player.y)<42)r.got=true;
- if(player.hp<=0){player.hp=0;dead=true;end('誓約中斷','騎士倒在灰燼之中。再試一次，找回三枚徽記。')}
- if(relics.every(r=>r.got)&&enemies[3].hp<=0&&!won){won=true;end('王冠歸來','你擊敗了墮落騎士，失落王冠重見天日。王國的故事，才正要開始。')}
- document.getElementById('hp').style.width=player.hp+'%';document.getElementById('hptext').textContent=Math.ceil(player.hp)+' / 100';
- document.getElementById('quest').innerHTML='主線任務<br>'+ (relics.every(r=>r.got)?'擊敗古堡守門者':'尋回 3 枚王室徽記')+'<br><span class="small">已取得：'+relics.filter(r=>r.got).length+' / 3</span>';
- document.getElementById('status').textContent=relics.every(r=>r.got)?'古堡入口　·　守門者甦醒':'灰燼森林　·　黎明前';
+:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0c141b;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;touch-action:none}#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 42%,rgba(3,8,13,.55) 100%)}#hud{position:fixed;inset:0;pointer-events:none;color:#f5e8c8;text-shadow:0 2px 6px #000}#top{position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top) + 10px);display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.panel{background:linear-gradient(135deg,rgba(13,22,29,.88),rgba(25,34,39,.72));border:1px solid rgba(226,194,125,.55);border-radius:12px;padding:9px 12px;backdrop-filter:blur(8px);box-shadow:0 5px 22px #0006}.brand{font-family:Georgia,serif;font-weight:800;letter-spacing:.12em;font-size:14px;color:#f3d99d}.small{font-size:11px;color:#d4cbb9;margin-top:3px}.stats{min-width:130px}.bar{height:7px;background:#422c2c;border-radius:8px;margin-top:5px;overflow:hidden}.bar>i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#a52e32,#e36c54);border-radius:8px;transition:width .2s}.objective{max-width:48%;font-size:12px;line-height:1.45;text-align:right}.objective b{color:#f3d99d}.objective span{display:block;color:#d9cfbd}#message{position:absolute;top:22%;left:50%;transform:translateX(-50%);font-family:Georgia,serif;font-weight:700;letter-spacing:.08em;text-align:center;font-size:clamp(18px,4vw,28px);color:#ffe7b0;opacity:0;transition:opacity .4s;white-space:nowrap}#message.show{opacity:1}#controls{position:absolute;inset:auto 0 calc(env(safe-area-inset-bottom) + 18px);height:150px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 18px;pointer-events:none}.stick-wrap{width:124px;height:124px;border-radius:50%;border:1px solid #e8d5a65c;background:#111b22a8;backdrop-filter:blur(5px);position:relative;pointer-events:auto;touch-action:none;box-shadow:inset 0 0 20px #0008}.stick{position:absolute;width:54px;height:54px;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%,#d9c79c,#766747);border:2px solid #f0dba0;box-shadow:0 4px 12px #0009}.actions{display:flex;gap:12px;align-items:flex-end;pointer-events:auto}.act{width:68px;height:68px;border-radius:50%;border:1px solid #e8d5a6aa;background:linear-gradient(145deg,#34434aee,#111b22ee);color:#f7e7c1;font-weight:800;font-size:13px;box-shadow:0 5px 15px #0009;touch-action:none}.act.primary{width:78px;height:78px;background:linear-gradient(145deg,#9b6438,#493326);border:2px solid #e8c47e;font-size:15px}.act:active{transform:scale(.94);filter:brightness(1.3)}#hint{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 160px);left:50%;transform:translateX(-50%);font-size:10px;color:#d8d0c1;background:#111b22aa;padding:5px 10px;border-radius:20px;white-space:nowrap}#start,#dead{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:22px;background:linear-gradient(180deg,#08101899,#081018e8);z-index:5}#dead{display:none} .modal{max-width:480px;width:100%;text-align:center;padding:26px 22px;border:1px solid #c6a568;border-radius:22px;background:linear-gradient(145deg,#27343b,#111a20);box-shadow:0 20px 70px #000c}.modal h1{font-family:Georgia,serif;color:#f0d391;letter-spacing:.12em;font-size:clamp(26px,7vw,40px);margin:0 0 10px}.modal p{color:#e0d7c7;line-height:1.7;font-size:14px}.gold{border:0;border-radius:12px;background:linear-gradient(135deg,#d4b16b,#936638);color:#1b1711;font-weight:900;font-size:17px;padding:14px 28px;margin-top:8px}.note{font-size:11px!important;color:#aaa18f!important}#rotate{display:none;position:fixed;right:12px;top:50%;writing-mode:vertical-rl;font-size:10px;color:#ead8ad;background:#111b22aa;padding:8px;border-radius:8px}
+@media(orientation:landscape){#controls{height:120px}.stick-wrap{width:108px;height:108px}.act{width:60px;height:60px}.act.primary{width:70px;height:70px}#hint{bottom:calc(env(safe-area-inset-bottom) + 128px)}}
+</style></head>
+<body><div id="game"></div><div id="vignette"></div>
+<div id="hud"><div id="top"><div class="panel stats"><div class="brand">灰燼誓約</div><div class="small">誓約騎士・艾德里克</div><div class="bar"><i id="hpbar"></i></div><div class="small" id="hptext">生命 100 / 100</div></div><div class="panel objective"><b>第一章・灰燼森林</b><span id="quest">尋回王室徽記：0 / 3</span><span id="enemies">威脅：森林墮落者</span></div></div><div id="message"></div><div id="controls"><div class="stick-wrap" id="stickArea"><div class="stick" id="stick"></div></div><div class="actions"><button class="act" id="roll">翻滾</button><button class="act" id="guard">防禦</button><button class="act primary" id="attack">斬擊</button></div></div><div id="hint">左側移動・右側斬擊／防禦／翻滾</div><div id="rotate">建議橫向遊玩</div></div>
+<div id="start"><div class="modal"><h1>灰燼誓約</h1><p>王國陷落的第七年，古堡深處傳來鐘聲。<br>你是最後的誓約騎士，穿越灰燼森林，尋回三枚王室徽記，擊敗守門的墮落騎士，奪回失落王冠。</p><p>以左側搖桿移動，右側按鈕戰鬥。靠近金色徽記即可收集。</p><button class="gold" id="begin">踏入灰燼森林</button><p class="note">3D 手機試玩版・建議使用橫向畫面</p></div></div>
+<div id="dead"><div class="modal"><h1 id="endtitle">誓約未竟</h1><p id="endtext">騎士倒下了，但誓約仍在等待。</p><button class="gold" id="retry">再次啟程</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const root=document.querySelector('#game');
+let scene,camera,renderer,clock,player,weapon,shield,enemies=[],sigils=[],particles=[],hp=100,sigilsGot=0,started=false,dead=false,boss=null,attackTimer=0,rollTimer=0,guard=false,invuln=0,move={x:0,y:0},keys={},msgTimer=0;
+const mat=(c,rough=.8,metal=0)=>new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:metal});
+const M={armor:mat(0x9da9ad,.32,.72),dark:mat(0x26343b,.72,.3),gold:mat(0xc69b52,.34,.7),leather:mat(0x4b3025),steel:mat(0xc8d3d4,.22,.8),wood:mat(0x4c3929),bark:mat(0x382b25),leaf:mat(0x263d37),leaf2:mat(0x405647),stone:mat(0x535c60),moss:mat(0x52634b),red:mat(0x7d2928),glow:new THREE.MeshBasicMaterial({color:0xffd47b}),enemy:mat(0x542b2c,.45,.3)};
+function mesh(g,m,x=0,y=0,z=0,parent=scene){let o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function box(w,h,d,m,x,y,z,p=scene){return mesh(new THREE.BoxGeometry(w,h,d),m,x,y,z,p)}
+function sphere(r,m,x,y,z,p=scene){return mesh(new THREE.SphereGeometry(r,16,12),m,x,y,z,p)}
+function cyl(rt,rb,h,m,x,y,z,p=scene,n=12){return mesh(new THREE.CylinderGeometry(rt,rb,h,n),m,x,y,z,p)}
+function showMessage(t){let el=document.querySelector('#message');el.textContent=t;el.classList.add('show');msgTimer=2.2}
+function makeKnight(){let g=new THREE.Group();scene.add(g);g.position.set(0,0,4);player=g;
+// torso + armor silhouette
+let torso=mesh(new THREE.CapsuleGeometry(.34,.62,4,8),M.armor,0,1.35,0,g);torso.scale.set(1,.95,.72);
+let chest=mesh(new THREE.BoxGeometry(.62,.48,.18),M.steel,0,1.45,-.02,g);chest.rotation.x=-.08;
+let tabard=mesh(new THREE.BoxGeometry(.48,.58,.08),M.red,0,1.03,.12,g);tabard.rotation.x=.06;
+let belt=box(.58,.09,.23,M.gold,0,1.05,0,g);
+let head=sphere(.24,M.dark,0,1.98,0,g);let helm=cyl(.25,.29,.42,M.armor,0,2.12,0,g,8);helm.scale.z=.88;let visor=box(.32,.08,.04,M.dark,0,2.12,-.235,g);let crest=mesh(new THREE.ConeGeometry(.07,.28,5),M.red,0,2.45,0,g);
+for(let s of [-1,1]){let arm=mesh(new THREE.CapsuleGeometry(.13,.48,3,7),M.armor,s*.48,1.43,0,g);arm.rotation.z=s*-.18;let pa=mesh(new THREE.CapsuleGeometry(.14,.38,3,7),M.dark,s*.52,1.02,0,g);pa.rotation.z=s*.1;let leg=mesh(new THREE.CapsuleGeometry(.16,.55,3,7),M.dark,s*.19,.48,0,g);let boot=box(.3,.18,.48,M.leather,s*.19,.12,-.06,g);}
+// shoulder plates
+for(let s of [-1,1]){let sh=sphere(.22,M.steel,s*.47,1.72,0,g);sh.scale.set(1,.72,1);}
+weapon=new THREE.Group();weapon.position.set(.62,1.22,-.12);g.add(weapon);let h=cyl(.045,.045,.38,M.leather,0,-.1,0,weapon);let guardbar=box(.36,.055,.07,M.gold,0,.1,0,weapon);let blade=mesh(new THREE.BoxGeometry(.11,.95,.035),M.steel,0,.58,0,weapon);blade.rotation.z=-.04;let tip=mesh(new THREE.ConeGeometry(.08,.22,4),M.steel,0,1.15,0,weapon);tip.rotation.z=Math.PI;
+shield=box(.48,.62,.12,M.red,-.58,1.24,-.02,g);shield.rotation.z=-.1;let emblem=sphere(.11,M.gold,-.58,1.25,-.09,g);
+return g}
+function tree(x,z,s=1){let g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);scene.add(g);cyl(.22,.34,2.8,M.bark,0,1.4,0,g);for(let i=0;i<4;i++){let y=2+i*.48;let c=mesh(new THREE.ConeGeometry(1.15-i*.15,2.0,7),i%2?M.leaf:M.leaf2,0,y,0,g);c.position.y=y;}return g}
+function ruin(x,z){let g=new THREE.Group();g.position.set(x,0,z);scene.add(g);for(let i=0;i<3;i++){box(.55,3.2-i*.35,.65,M.stone,(i-1)*.65,1.6,0,g)}box(2.5,.4,.8,M.stone,0,3.2,0,g);for(let i=0;i<3;i++){let col=cyl(.18,.22,2.4,M.stone,-.85+i*.85,1.2,-.5,g,8);}
 }
-function end(title,desc){running=false;document.getElementById('mtitle').textContent=title;document.getElementById('mdesc').textContent=desc;document.getElementById('start').textContent='重新開始';document.getElementById('modal').style.display='flex'}
-function restart(){player.x=900;player.y=1030;player.hp=100;player.inv=0;player.atk=0;player.roll=0;relics.forEach(r=>r.got=false);enemies.forEach((e,i)=>{e.hp=e.max;e.hit=0;let p=[[520,560],[1220,760],[850,360],[900,160]][i];e.x=p[0];e.y=p[1]});won=dead=false;frames=0}
-function startGame(e){
- if(e){e.preventDefault();e.stopPropagation()}
- if(won||dead)restart();
- running=true;
- document.getElementById('modal').style.display='none';
-}
-const startButton=document.getElementById('start');
-startButton.addEventListener('pointerup',startGame);
-startButton.addEventListener('click',startGame);
-function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
-function ellipse(x,y,rx,ry,color){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=color;ctx.fill()}
-function knight(x,y,dir,isEnemy=false,boss=false,flash=false){
- ctx.save();ctx.translate(x,y);ctx.rotate(0);
- ellipse(0,9,boss?21:13,boss?9:6,'#10151288');
- let sc=boss?1.35:1;ctx.scale(sc,sc);
- // cloak and armor body
- poly([[-9,-10],[-14,9],[0,15],[13,8],[8,-10]],isEnemy?'#542b2d':'#263d4b','#0b1115');
- ellipse(0,-11,9,12,flash?'#fff1c7':(isEnemy?'#873d38':'#9caab0'));
- poly([[-9,-17],[-7,-27],[0,-31],[8,-27],[10,-17],[4,-13],[-5,-13]],isEnemy?'#6f3431':'#c1c9c5','#27343a');
- // visor
- poly([[-6,-22],[6,-22],[5,-17],[-5,-17]],'#18232a');
- ctx.strokeStyle='#d7bd7c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-25);ctx.lineTo(0,-18);ctx.stroke();
- // sword
- ctx.save();ctx.translate(9,-7);ctx.rotate(dir);ctx.fillStyle='#d7dce0';ctx.fillRect(0,-2,28,4);ctx.fillStyle='#a8874c';ctx.fillRect(-3,-5,6,10);ctx.restore();
- if(!isEnemy&&blocking){ctx.strokeStyle='#b9d7e4';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-7,24,player.dir-.8,player.dir+.8);ctx.stroke()}
- if(!isEnemy&&player.atk>0){ctx.strokeStyle='#f5dda0';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-5,43,dir-.9,dir+.9);ctx.stroke()}
- ctx.restore();
-}
-function draw(){
- ctx.clearRect(0,0,W,H);let scale=Math.min(W/900,H/650,1.25),camX=player.x-W/(2*scale),camY=player.y-H/(2*scale);
- ctx.save();ctx.scale(scale,scale);ctx.translate(-camX,-camY);
- // ground
- ctx.fillStyle='#293c32';ctx.fillRect(0,0,world.w,world.h);
- for(let y=0;y<world.h;y+=80)for(let x=0;x<world.w;x+=80){ctx.fillStyle=((x+y)/80%2<1)?'#304638':'#2c4035';ctx.fillRect(x,y,80,80)}
- // ancient path
- ctx.strokeStyle='#786b53';ctx.lineWidth=95;ctx.globalAlpha=.45;ctx.beginPath();ctx.moveTo(900,1300);ctx.bezierCurveTo(650,950,1150,800,900,560);ctx.bezierCurveTo(720,400,950,300,900,80);ctx.stroke();ctx.globalAlpha=1;
- stones.forEach(s=>{ellipse(s.x,s.y,s.r,s.r*.55,'#596054');ellipse(s.x-2,s.y-2,s.r*.55,s.r*.25,'#78806e')});
- trees.forEach(t=>{ellipse(t.x,t.y+12,t.r*1.2,t.r*.5,'#18251e');poly([[t.x-5,t.y],[t.x-3,t.y-35],[t.x+5,t.y-35],[t.x+7,t.y]],'#4b3828');ellipse(t.x,t.y-35,t.r,t.r*.9,'#20382d');ellipse(t.x-8,t.y-42,t.r*.55,t.r*.45,'#36513a')});
- // ruins around boss
- for(let i=0;i<9;i++){let a=i*Math.PI*2/9;let x=900+Math.cos(a)*125,y=160+Math.sin(a)*75;ctx.fillStyle='#777365';ctx.fillRect(x-12,y-28,24,50);poly([[x-16,y-28],[x,y-43],[x+16,y-28]],'#958b72')}
- relics.forEach((r,i)=>{if(r.got)return;ctx.save();ctx.translate(r.x,r.y);let bob=Math.sin(frames*.06+i)*5;ellipse(0,8,18,7,'#1119');ctx.shadowColor='#f5ce69';ctx.shadowBlur=20;poly([[-9,-10],[0,-24],[9,-10],[7,4],[-7,4]],'#e6c36e','#fff0b0');ctx.shadowBlur=0;ctx.restore()});
- enemies.forEach(e=>{if(e.hp<=0)return;knight(e.x,e.y,Math.atan2(player.y-e.y,player.x-e.x),true,e.boss,e.hit>0);ctx.fillStyle='#1b1111';ctx.fillRect(e.x-22,e.y-43,44,5);ctx.fillStyle=e.boss?'#d4a34e':'#b74e45';ctx.fillRect(e.x-22,e.y-43,44*Math.max(0,e.hp/e.max),5)});
- knight(player.x,player.y,player.dir,false,false,player.inv>0&&frames%4<2);
- // edge vignette
- ctx.restore();
- let grd=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.max(W,H)*.72);grd.addColorStop(0,'#0000');grd.addColorStop(1,'#080d13a8');ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
-}
-function loop(){update();draw();requestAnimationFrame(loop)}loop();
-})();
-</script>
-</body></html>
+function createSigil(x,z,i){let g=new THREE.Group();g.position.set(x,.9,z);scene.add(g);let ring=mesh(new THREE.TorusGeometry(.36,.07,8,24),M.gold,0,0,0,g);ring.rotation.x=Math.PI/2;let gem=mesh(new THREE.OctahedronGeometry(.22),M.glow,0,.06,0,g);let light=new THREE.PointLight(0xffc86a,1.5,5);light.position.y=.4;g.add(light);sigils.push({group:g,got:false,phase:i});}
+function makeEnemy(x,z,big=false){let g=new THREE.Group();g.position.set(x,0,z);scene.add(g);let scale=big?1.35:1;g.scale.setScalar(scale);let body=mesh(new THREE.CapsuleGeometry(.3,.58,4,8),M.enemy,0,1.15,0,g);let head=sphere(.23,M.dark,0,1.85,0,g);let helm=cyl(.25,.28,.34,M.dark,0,1.98,0,g,8);let eye1=sphere(.045,M.glow,-.1,1.85,-.2,g),eye2=sphere(.045,M.glow,.1,1.85,-.2,g);let sword=box(.1,.9,.06,M.steel,.45,1.15,-.05,g);sword.rotation.z=-.2;for(let s of [-1,1]){mesh(new THREE.CapsuleGeometry(.13,.4,3,6),M.dark,s*.4,1.35,0,g);mesh(new THREE.CapsuleGeometry(.15,.5,3,6),M.dark,s*.17,.48,0,g)}let hpbar=box(.7,.07,.05,M.red,0,2.35,0,g);return {group:g,hp:big?9:3,max:big?9:3,big,attack:0,bar:hpbar,dead:false};}
+function setup(){scene=new THREE.Scene();scene.background=new THREE.Color(0x9aa9a7);scene.fog=new THREE.FogExp2(0x87958e,.027);camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,150);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.18;root.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xdce9ee,0x26302a,2.0));let sun=new THREE.DirectionalLight(0xffdfad,2.6);sun.position.set(-8,16,6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-22;sun.shadow.camera.right=22;sun.shadow.camera.top=22;sun.shadow.camera.bottom=-22;scene.add(sun);let fill=new THREE.DirectionalLight(0x91b9c9,.7);fill.position.set(8,8,-10);scene.add(fill);
+let ground=mesh(new THREE.PlaneGeometry(100,100),mat(0x35443c),0,0,0);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;
+// path
+let path=mesh(new THREE.PlaneGeometry(7,70),mat(0x625a4c),0,.012,-18);path.rotation.x=-Math.PI/2;
+// rocks + trees corridor
+for(let i=0;i<54;i++){let z=12-(i/54)*62;let side=i%2?1:-1;let x=side*(5+Math.random()*7);tree(x,z,.8+Math.random()*.8);if(i%4===0){let r=sphere(.7+Math.random()*.6,M.stone,x*.72,.45,z+1);r.scale.y=.6;}}
+for(let i=0;i<10;i++){let x=(i%2?1:-1)*(4.8+Math.random()*1.4),z=8-i*5.5;tree(x,z,1.2)}
+ruin(-7,-13);ruin(7,-31);ruin(-5,-48);
+// distant towers
+for(let s of [-1,1]){cyl(1,1.3,8,M.stone,s*16,4,-44,scene,8);}
+makeKnight();createSigil(-3,-7,0);createSigil(3,-23,1);createSigil(-2,-39,2);
+enemies.push(makeEnemy(2,-13),makeEnemy(-3,-29),makeEnemy(2,-42));boss=makeEnemy(0,-54,true);enemies.push(boss);
+clock=new THREE.Clock();window.addEventListener('resize',resize);}
+function resize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));}
+function updateHUD(){document.querySelector('#hpbar').style.width=Math.max(0,hp)+'%';document.querySelector('#hptext').textContent='生命 '+Math.max(0,Math.ceil(hp))+' / 100';document.querySelector('#quest').textContent=`尋回王室徽記：${sigilsGot} / 3`;document.querySelector('#enemies').textContent=sigilsGot===3?'守門者已甦醒':'威脅：森林墮落者';}
+function hitEnemy(e){if(e.dead)return;e.hp--;e.group.position.add(new THREE.Vector3(0,0,.18));if(e.hp<=0){e.dead=true;scene.remove(e.group);if(e.big){showMessage('守門者倒下了・王冠重歸誓約');document.querySelector('#endtitle').textContent='王冠歸來';document.querySelector('#endtext').textContent='三枚徽記重聚，墮落守門者已被擊敗。灰燼之中，王國的鐘聲再次響起。';setTimeout(()=>document.querySelector('#dead').style.display='flex',1500)}}}
+function attack(){if(!started||dead||attackTimer>0||rollTimer>0)return;attackTimer=.42;weapon.rotation.z=-1.35;let forward=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);for(let e of enemies){if(e.dead)continue;let d=e.group.position.clone().sub(player.position);if(d.length()<2.6&&d.normalize().dot(forward)>.15)hitEnemy(e)}}
+function doRoll(){if(!started||dead||rollTimer>0)return;rollTimer=.62;invuln=.7;}
+function doGuard(v){guard=v}
+function damage(n){if(invuln>0||guard||dead)return;hp-=n;updateHUD();if(hp<=0){dead=true;document.querySelector('#dead').style.display='flex';document.querySelector('#endtitle').textContent='誓約未竟';document.querySelector('#endtext').textContent='騎士倒下了。重新踏入森林，完成未竟的誓約。'}}
+function update(dt,t){if(!started||dead)return;attackTimer=Math.max(0,attackTimer-dt);rollTimer=Math.max(0,rollTimer-dt);invuln=Math.max(0,invuln-dt);if(msgTimer>0){msgTimer-=dt;if(msgTimer<=0)document.querySelector('#message').classList.remove('show')}
+let x=move.x+(keys.KeyD?1:0)-(keys.KeyA?1:0),y=move.y+(keys.KeyW?1:0)-(keys.KeyS?1:0);let len=Math.hypot(x,y);if(len>1){x/=len;y/=len}let moving=len>.08;let speed=rollTimer>0?8:guard?1.5:4.1;let forward=new THREE.Vector3(x,0,-y);if(moving){let angle=Math.atan2(forward.x,-forward.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,angle,Math.min(1,dt*10));player.position.addScaledVector(forward,speed*dt)}if(rollTimer>0){let f=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);player.position.addScaledVector(f,8*dt);player.rotation.z=Math.sin((.62-rollTimer)*Math.PI)*.35}else player.rotation.z=THREE.MathUtils.damp(player.rotation.z,0,8,dt);
+player.position.x=THREE.MathUtils.clamp(player.position.x,-9,9);player.position.z=THREE.MathUtils.clamp(player.position.z,-58,11);
+if(attackTimer>0)weapon.rotation.z=THREE.MathUtils.lerp(weapon.rotation.z,1.4,dt*20);else weapon.rotation.z=THREE.MathUtils.damp(weapon.rotation.z,0,12,dt);
+// sigils
+for(let s of sigils){if(s.got)continue;s.group.rotation.y+=dt*.8;s.group.position.y=.9+Math.sin(t*2+s.phase)*.15;if(s.group.position.distanceTo(player.position)<1.5){s.got=true;scene.remove(s.group);sigilsGot++;showMessage('王室徽記已取得');updateHUD();if(sigilsGot===3)showMessage('三枚徽記齊聚・守門者甦醒！')}}
+// enemy AI
+for(let e of enemies){if(e.dead)continue;let d=player.position.clone().sub(e.group.position);let dist=d.length();if((!e.big||sigilsGot===3)&&dist<10&&dist>1.25){d.y=0;d.normalize();e.group.position.addScaledVector(d,dt*(e.big?1.45:1.15));e.group.rotation.y=Math.atan2(d.x,d.z)}if(dist<1.8){e.attack-=dt;if(e.attack<=0){damage(e.big?18:9);e.attack=e.big?1.6:1.9}}}
+// camera follow behind
+let desired=new THREE.Vector3(0,4.3,7.4).applyQuaternion(player.quaternion).add(player.position);camera.position.lerp(desired,1-Math.exp(-5*dt));let look=player.position.clone().add(new THREE.Vector3(0,1.3,-1.0).applyQuaternion(player.quaternion));camera.lookAt(look);
+// light fog and animation
+weapon.position.y=1.22+(moving?Math.sin(t*10)*.035:0);}
+function loop(){requestAnimationFrame(loop);let dt=Math.min(clock.getDelta(),.04);let t=clock.elapsedTime;update(dt,t);if(renderer)renderer.render(scene,camera)}
+// joystick pointer
+const area=document.querySelector('#stickArea'),knob=document.querySelector('#stick');let pointer=null;function stickMove(e){let r=area.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,l=Math.hypot(dx,dy);if(l>max){dx=dx/l*max;dy=dy/l*max}knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;move.x=dx/max;move.y=-dy/max}area.addEventListener('pointerdown',e=>{pointer=e.pointerId;area.setPointerCapture(pointer);stickMove(e)});area.addEventListener('pointermove',e=>{if(e.pointerId===pointer)stickMove(e)});function release(){pointer=null;move={x:0,y:0};knob.style.transform='translate(-50%,-50%)'}area.addEventListener('pointerup',release);area.addEventListener('pointercancel',release);
+function bindHold(id,down,up){let b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);down()});b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
+bindHold('attack',attack,()=>{});bindHold('roll',doRoll,()=>{});bindHold('guard',()=>doGuard(true),()=>doGuard(false));window.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space')attack();if(e.code==='ShiftLeft')doRoll()});window.addEventListener('keyup',e=>keys[e.code]=false);
+document.querySelector('#begin').onclick=()=>{document.querySelector('#start').style.display='none';started=true;showMessage('探索灰燼森林・尋回三枚徽記')};document.querySelector('#retry').onclick=()=>location.reload();
+setup();updateHUD();loop();
+</script></body></html>
